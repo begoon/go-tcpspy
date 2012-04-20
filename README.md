@@ -20,14 +20,14 @@ It starts running with the message:
 
     Start listening on port 8081 and forwarding data to ftp.idsoftware.com:21
 
-In the separate console you can run:
+In a separate console you can run:
 
     telnet localhost 8081
 
-And type in something, for example, "USER test"`<ENTER>`,
-"PASS test@test.org"`<ENTER>` and finally "QUIT"`<ENTER>`.
+and enter something, for example, `USER test` `<ENTER>`,
+`PASS test@test.org` `<ENTER>` and finally `QUIT` `<ENTER>`.
 
-The program should produce three log.
+It should produce three logs.
 
 Bidirectional dump
 ------------------
