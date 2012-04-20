@@ -25,27 +25,17 @@ func die(format string, v ...interface{}) {
   os.Exit(1)
 }
 
-func connection_logger(data chan string, conn_n int, local_info, remote_info string) {
-  log_name := fmt.Sprintf("log-%s-%04d-%s-%s.log", format_time(time.Now()),
-    conn_n, local_info, remote_info)
-  f, err := os.Create(log_name)
-  if err != nil {
-    die("Unable to create file %s, %v\n", log_name, err)
-  }
-  defer f.Close()
-  for {
-    s := <-data
-    if s == "" {
-      break
-    }
-    f.WriteString(s)
-    f.Sync()
-  }
+func connection_logger(data chan []byte, conn_n int, local_info, remote_info string) {
+  log_name := fmt.Sprintf("log-%s-%04d-%s-%s.log", format_time(time.Now()), conn_n, local_info, remote_info)
+  logger_loop(data, log_name)
 }
 
 func binary_logger(data chan []byte, conn_n int, peer string) {
-  log_name := fmt.Sprintf("log-binary-%s-%04d-%s.log", format_time(time.Now()),
-    conn_n, peer)
+  log_name := fmt.Sprintf("log-binary-%s-%04d-%s.log", format_time(time.Now()), conn_n, peer)
+  logger_loop(data, log_name)
+}
+
+func logger_loop(data chan []byte, log_name string) {
   f, err := os.Create(log_name)
   if err != nil {
     die("Unable to create file %s, %v\n", log_name, err)
@@ -70,10 +60,9 @@ func printable_addr(a net.Addr) string {
 }
 
 type Channel struct {
-  from, to      net.Conn
-  logger        chan string
-  binary_logger chan []byte
-  ack           chan bool
+  from, to              net.Conn
+  logger, binary_logger chan []byte
+  ack                   chan bool
 }
 
 func pass_through(c *Channel) {
@@ -86,16 +75,15 @@ func pass_through(c *Channel) {
   for {
     n, err := c.from.Read(b)
     if err != nil {
-      c.logger <- fmt.Sprintf("Disconnected from %s\n", from_peer)
+      c.logger <- []byte(fmt.Sprintf("Disconnected from %s\n", from_peer))
       break
     }
     if n > 0 {
-      c.logger <- fmt.Sprintf("Received (#%d, %08X) %d bytes from %s\n",
-        packet_n, offset, n, from_peer)
-      c.logger <- hex.Dump(b[:n])
+      c.logger <- []byte(fmt.Sprintf("Received (#%d, %08X) %d bytes from %s\n", packet_n, offset, n, from_peer))
+      c.logger <- []byte(hex.Dump(b[:n]))
       c.binary_logger <- b[:n]
       c.to.Write(b[:n])
-      c.logger <- fmt.Sprintf("Sent (#%d) to %s\n", packet_n, to_peer)
+      c.logger <- []byte(fmt.Sprintf("Sent (#%d) to %s\n", packet_n, to_peer))
       offset += n
       packet_n += 1
     }
@@ -116,7 +104,7 @@ func process_connection(local net.Conn, conn_n int, target string) {
 
   started := time.Now()
 
-  logger := make(chan string)
+  logger := make(chan []byte)
   from_logger := make(chan []byte)
   to_logger := make(chan []byte)
   ack := make(chan bool)
@@ -125,7 +113,7 @@ func process_connection(local net.Conn, conn_n int, target string) {
   go binary_logger(from_logger, conn_n, local_info)
   go binary_logger(to_logger, conn_n, remote_info)
 
-  logger <- fmt.Sprintf("Connected to %s at %s\n", target, format_time(started))
+  logger <- []byte(fmt.Sprintf("Connected to %s at %s\n", target, format_time(started)))
 
   go pass_through(&Channel{remote, local, logger, to_logger, ack})
   go pass_through(&Channel{local, remote, logger, from_logger, ack})
@@ -134,9 +122,9 @@ func process_connection(local net.Conn, conn_n int, target string) {
 
   finished := time.Now()
   duration := finished.Sub(started)
-  logger <- fmt.Sprintf("Finished at %s, duration %s\n", format_time(started), duration.String())
+  logger <- []byte(fmt.Sprintf("Finished at %s, duration %s\n", format_time(started), duration.String()))
 
-  logger <- ""            // Stop logger
+  logger <- []byte{}      // Stop logger
   from_logger <- []byte{} // Stop "from" binary logger
   to_logger <- []byte{}   // Stop "to" binary logger
 }
