@@ -1,5 +1,5 @@
 This is a TCP/IP debugger/proxy allowing to intercept the network traffic.
-It can serve multiple connection in parallel.
+It can serve multiple connections in parallel.
 
 Prerequisites
 =============
