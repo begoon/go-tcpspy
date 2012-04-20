@@ -1,3 +1,6 @@
+// TCP/IP debugger/proxy
+// Copyright (C) 2012 by Alexander Demin
+
 package main
 
 import (
